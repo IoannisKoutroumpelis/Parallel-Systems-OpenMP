@@ -113,7 +113,13 @@ int main(int argc, char *argv[]) {
 
     double start = omp_get_wtime();
     if (parallel) {
-            mergeSort_parallel(a, 0, n-1);
+        #pragma omp parallel num_threads(threads)
+        {
+            #pragma omp single
+            {
+                mergeSort_parallel(a, 0, n-1);
+            }
+        }
     } else {
         mergeSort_serial(a, 0, n-1);
     }

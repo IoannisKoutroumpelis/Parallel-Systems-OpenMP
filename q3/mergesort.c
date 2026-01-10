@@ -13,7 +13,8 @@ void merge(int *a, int left, int mid, int right) {
     int n2 = right -mid;
 
     //Temp arrays
-    int L[n1], R[n2];
+    int *L = malloc(n1 * sizeof(long int));
+    int *R = malloc(n2 * sizeof(long int));
 
     //copy data to temp arrays
     for (i = 0; i < n1; i++)

@@ -13,9 +13,9 @@ TARGET2 = q2
 TARGET3 = q3
 
 # Source files
-SRC1 = q1.c
-SRC2 = q2.c
-SRC3 = q3.c
+SRC1 = src/q1.c
+SRC2 = src/q2.c
+SRC3 = src/q3.c
 
 # Default rule: Compile all targets
 all: $(TARGET1) $(TARGET2) $(TARGET3)

@@ -3,9 +3,7 @@
 #include <omp.h>
 #include <time.h>
 
-/**
- * Compressed Sparse Row (CSR) format structure.
- */
+//Compressed Sparse Row (CSR) format structure
 typedef struct {
     int *values;        // Non-zero values
     int *col_indices;   // Column indices for values
@@ -14,9 +12,97 @@ typedef struct {
     int n_rows;         // Number of rows (N)
 } CSRMatrix;
 
-/**
- * Generates a dense matrix with a specified sparsity percentage.
- */
+CSRMatrix create_csr_serial(int *dense, int n) {
+    CSRMatrix csr;
+    csr.n_rows = n;
+    csr.row_ptr = (int *)malloc((n + 1) * sizeof(int));
+
+    // Pass 1: count non-zeros per row
+    int total_nnz = 0;
+    for (int i = 0; i < n; i++) {
+        int count = 0;
+        for (int j = 0; j < n; j++) {
+            if (dense[i * n + j] != 0)
+                count++;
+        }
+        csr.row_ptr[i] = count;
+        total_nnz += count;
+    }
+
+    // Pass 2: prefix sum
+    int sum = 0;
+    for (int i = 0; i < n; i++) {
+        int temp = csr.row_ptr[i];
+        csr.row_ptr[i] = sum;
+        sum += temp;
+    }
+    csr.row_ptr[n] = sum;
+
+    csr.num_non_zeros = total_nnz;
+    csr.values = (int *)malloc(total_nnz * sizeof(int));
+    csr.col_indices = (int *)malloc(total_nnz * sizeof(int));
+
+    // Pass 3: fill CSR arrays
+    for (int i = 0; i < n; i++) {
+        int pos = csr.row_ptr[i];
+        for (int j = 0; j < n; j++) {
+            int val = dense[i * n + j];
+            if (val != 0) {
+                csr.values[pos] = val;
+                csr.col_indices[pos] = j;
+                pos++;
+            }
+        }
+    }
+
+    return csr;
+}
+
+
+void spmv_csr_serial(CSRMatrix *csr, int *x, int *y, int iterations) {
+    int n = csr->n_rows;
+
+    for (int iter = 0; iter < iterations; iter++) {
+        for (int i = 0; i < n; i++) {
+            int sum = 0;
+            int start = csr->row_ptr[i];
+            int end = csr->row_ptr[i + 1];
+
+            for (int k = start; k < end; k++) {
+                sum += csr->values[k] * x[csr->col_indices[k]];
+            }
+            y[i] = sum;
+        }
+
+        // y γίνεται x για την επόμενη επανάληψη
+        if (iterations > 1 && iter < iterations - 1) {
+            for (int k = 0; k < n; k++)
+                x[k] = y[k];
+        }
+    }
+}
+
+
+void dense_mult_serial(int *matrix, int *x, int *y, int n, int iterations) {
+    for (int iter = 0; iter < iterations; iter++) {
+        for (int i = 0; i < n; i++) {
+            int sum = 0;
+            for (int j = 0; j < n; j++) {
+                sum += matrix[i * n + j] * x[j];
+            }
+            y[i] = sum;
+        }
+
+        if (iterations > 1 && iter < iterations - 1) {
+            for (int k = 0; k < n; k++)
+                x[k] = y[k];
+        }
+    }
+}
+
+
+
+//Generates a dense matrix with a specified sparsity percentage
 void generate_dense(int *matrix, int n, int sparsity_percent) {
     #pragma omp parallel for schedule(static)
     for (int i = 0; i < n * n; i++) {
@@ -28,10 +114,9 @@ void generate_dense(int *matrix, int n, int sparsity_percent) {
     }
 }
 
-/**
- * Converts a dense matrix to CSR format in parallel.
- * Algorithm follows a 3-pass approach typical in HPC libraries.
- */
+
+//Converts a dense matrix to CSR format in parallel
+//Algorithm follows a 3-pass approach typical in HPC libraries
 CSRMatrix create_csr_parallel(int *dense, int n) {
     CSRMatrix csr;
     csr.n_rows = n;
@@ -82,10 +167,8 @@ CSRMatrix create_csr_parallel(int *dense, int n) {
     return csr;
 }
 
-/**
- * Sparse Matrix-Vector Multiplication (SpMV) using CSR.
- * Computes y = A * x.
- */
+//Sparse Matrix-Vector Multiplication (SpMV) using CSR.
+//Computes y = A * x.
 void spmv_csr_parallel(CSRMatrix *csr, int *x, int *y, int iterations) {
     int n = csr->n_rows;
     for (int iter = 0; iter < iterations; iter++) {
@@ -110,9 +193,7 @@ void spmv_csr_parallel(CSRMatrix *csr, int *x, int *y, int iterations) {
     }
 }
 
-/**
- * Baseline Dense Matrix-Vector Multiplication.
- */
+//Baseline Dense Matrix-Vector Multiplication.
 void dense_mult_parallel(int *matrix, int *x, int *y, int n, int iterations) {
     for (int iter = 0; iter < iterations; iter++) {
         #pragma omp parallel for default(none) private(iter) shared(matrix, x, y, n) schedule(static)
@@ -155,20 +236,34 @@ int main(int argc, char *argv[]) {
     generate_dense(dense_matrix, n, sparsity);
     printf("Matrix Size: %dx%d, Sparsity: %d%%, Threads: %d\n", n, n, sparsity, threads);
 
-    // 1. CSR Construction
+    // 1. CSR Parallel Construction
     double start = omp_get_wtime();
     CSRMatrix csr = create_csr_parallel(dense_matrix, n);
     double end = omp_get_wtime();
     printf("CSR Construction Time: %f sec\n", end - start);
 
-    // 2. SpMV Execution (CSR)
+    // 2. CSR Serial Construction
+    for(int i=0; i<n; i++) x[i] = 1;
+    double startS = omp_get_wtime();
+    CSRMatrix csr_serial = create_csr_serial(dense_matrix, n);
+    double endS = omp_get_wtime();
+    printf("CSR Construction SERIAL: %f sec\n", endS - startS);
+
+    // 3. Serial SpMV
+    for(int i=0; i<n; i++) x[i] = 1;
+    startS = omp_get_wtime();
+    spmv_csr_serial(&csr_serial, x, y, iterations);
+    endS = omp_get_wtime();
+    printf("SpMV CSR SERIAL: %f sec\n", endS - startS);
+
+    // 3. Parallel SpMV Execution (CSR)
     for(int i=0; i<n; i++) x[i] = 1; // Reset vector
     start = omp_get_wtime();
     spmv_csr_parallel(&csr, x, y, iterations);
     end = omp_get_wtime();
     printf("SpMV (CSR) Time:       %f sec\n", end - start);
 
-    // 3. Dense Execution (Baseline)
+    // 4. Dense Execution (Baseline)
     for(int i=0; i<n; i++) x[i] = 1; // Reset vector
     start = omp_get_wtime();
     dense_mult_parallel(dense_matrix, x, y, n, iterations);

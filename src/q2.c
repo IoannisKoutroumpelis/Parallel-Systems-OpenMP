@@ -240,28 +240,28 @@ int main(int argc, char *argv[]) {
     double start = omp_get_wtime();
     CSRMatrix csr = create_csr_parallel(dense_matrix, n);
     double end = omp_get_wtime();
-    printf("CSR Construction Time: %f sec\n", end - start);
+    printf("CSR Construction parallel: %f sec\n", end - start);
 
     // 2. CSR Serial Construction
     for(int i=0; i<n; i++) x[i] = 1;
     double startS = omp_get_wtime();
     CSRMatrix csr_serial = create_csr_serial(dense_matrix, n);
     double endS = omp_get_wtime();
-    printf("CSR Construction SERIAL: %f sec\n", endS - startS);
+    printf("CSR Construction serial: %f sec\n", endS - startS);
 
     // 3. Serial SpMV
     for(int i=0; i<n; i++) x[i] = 1;
     startS = omp_get_wtime();
     spmv_csr_serial(&csr_serial, x, y, iterations);
     endS = omp_get_wtime();
-    printf("SpMV CSR SERIAL: %f sec\n", endS - startS);
+    printf("SpMV CSR serial: %f sec\n", endS - startS);
 
     // 3. Parallel SpMV Execution (CSR)
     for(int i=0; i<n; i++) x[i] = 1; // Reset vector
     start = omp_get_wtime();
     spmv_csr_parallel(&csr, x, y, iterations);
     end = omp_get_wtime();
-    printf("SpMV (CSR) Time:       %f sec\n", end - start);
+    printf("SpMV (CSR) parallel:       %f sec\n", end - start);
 
     // 4. Dense Execution (Baseline)
     for(int i=0; i<n; i++) x[i] = 1; // Reset vector

@@ -8,9 +8,9 @@ CC = gcc
 CFLAGS = -O2 -Wall -fopenmp
 
 # Target executables
-TARGET1 = q1
-TARGET2 = q2
-TARGET3 = q3
+TARGET1 = bin/q1
+TARGET2 = bin/q2
+TARGET3 = bin/q3
 
 # Source files
 SRC1 = src/q1.c

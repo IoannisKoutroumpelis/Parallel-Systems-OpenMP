@@ -1,35 +1,39 @@
-# Compiler
-CC = gcc
+# 1. Ορισμός φακέλων
+BIN_DIR = bin
+SRC_DIR = src
 
-# Compiler flags
-# -O2: Optimization level 2
-# -Wall: Enable all warnings
-# -fopenmp: Enable OpenMP library support
+# 2. Compiler και Flags
+CC = gcc
 CFLAGS = -O2 -Wall -fopenmp
 
-# Target executables
-TARGET1 = bin/q1
-TARGET2 = bin/q2
-TARGET3 = bin/q3
+# 3. Ονόματα στόχων
+TARGETS = q1 q2 q3
 
-# Source files
-SRC1 = src/q1.c
-SRC2 = src/q2.c
-SRC3 = src/q3.c
+# 4. Πλήρη μονοπάτια των εκτελέσιμων (bin/q1, bin/q2, bin/q3)
+EXECS = $(patsubst %,$(BIN_DIR)/%,$(TARGETS))
 
-# Default rule: Compile all targets
-all: $(TARGET1) $(TARGET2) $(TARGET3)
+# Default rule
+all: $(BIN_DIR) $(EXECS)
 
-# Rules for building each executable
-$(TARGET1): $(SRC1)
-	$(CC) $(CFLAGS) -o $(TARGET1) $(SRC1)
+# Δημιουργία του φακέλου bin αν δεν υπάρχει
+$(BIN_DIR):
+	mkdir -p $(BIN_DIR)
 
-$(TARGET2): $(SRC2)
-	$(CC) $(CFLAGS) -o $(TARGET2) $(SRC2)
+# Rules για το κάθε εκτελέσιμο
+# Χρησιμοποιούμε το $@ για το όνομα του target (π.χ. bin/q1)
+# Και το $< για το όνομα του source file (π.χ. src/q1.c)
 
-$(TARGET3): $(SRC3)
-	$(CC) $(CFLAGS) -o $(TARGET3) $(SRC3)
+$(BIN_DIR)/q1: $(SRC_DIR)/q1.c
+	$(CC) $(CFLAGS) -o $@ $<
 
-# Clean rule: Remove executables
+$(BIN_DIR)/q2: $(SRC_DIR)/q2.c
+	$(CC) $(CFLAGS) -o $@ $<
+
+$(BIN_DIR)/q3: $(SRC_DIR)/q3.c
+	$(CC) $(CFLAGS) -o $@ $<
+
+# Clean rule: Διαγράφει όλο τον φάκελο bin
 clean:
-	rm -f $(TARGET1) $(TARGET2) $(TARGET3)
+	rm -rf $(BIN_DIR)
+
+.PHONY: all clean

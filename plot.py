@@ -1,5 +1,4 @@
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_pdf import PdfPages
 import re
 import os
 
@@ -45,83 +44,84 @@ def parse_q3(filepath):
         data.append({'elements': int(m[0]), 'type': m[1], 'threads': int(m[2]), 'time': float(m[3])})
     return data
 
-# --- Συνάρτηση για προσθήκη σελίδας στο PDF ---
+# --- Νέα Συνάρτηση για αποθήκευση σε φάκελο ---
 
-def add_plot_to_pdf(pdf, fig, title, description):
-    # Προσθήκη περιγραφής στο κάτω μέρος του σχήματος
-    plt.figtext(0.1, 0.02, description, wrap=True, horizontalalignment='left', fontsize=10, color='#333333')
-    plt.subplots_adjust(bottom=0.2) # Αφήνουμε χώρο για το κείμενο
-    pdf.savefig(fig)
+def save_plot(fig, folder, filename, description):
+    # Δημιουργία φακέλου αν δεν υπάρχει
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+    
+    # Προσθήκη περιγραφής στο κάτω μέρος
+    plt.figtext(0.1, 0.02, description, wrap=True, horizontalalignment='left', fontsize=9, color='#333333')
+    plt.subplots_adjust(bottom=0.25) # Περισσότερος χώρος για το κείμενο
+    
+    # Αποθήκευση εικόνας
+    filepath = os.path.join(folder, filename)
+    fig.savefig(filepath, dpi=300, bbox_inches='tight')
     plt.close(fig)
 
 # --- Κύριο Πρόγραμμα ---
 
-def generate_report():
-    folder = "test"
-    pdf_filename = "Analysis_Report.pdf"
+def generate_plots():
+    input_folder = "test"      # Ο φάκελος με τα .txt αρχεία
+    output_folder = "results"  # Ο φάκελος που θα μπουν οι εικόνες
     
-    with PdfPages(pdf_filename) as pdf:
+    # --- ΑΣΚΗΣΗ 1 ---
+    res1 = parse_q1(os.path.join(input_folder, "q1_test.txt"))
+    if res1:
+        threads, serial, parallel = res1
+        fig, ax = plt.subplots(figsize=(8, 6))
+        ax.plot(threads, parallel, marker='o', color='blue', label='Parallel')
+        ax.axhline(y=sum(serial)/len(serial), color='red', linestyle='--', label='Avg Serial')
+        ax.set_title("Question 1 - Execution Time vs Threads")
+        ax.set_xlabel("Threads")
+        ax.set_ylabel("Time (seconds)")
+        ax.legend()
+        ax.grid(True)
         
-        # --- ΑΣΚΗΣΗ 1 ---
-        res1 = parse_q1(os.path.join(folder, "q1_test.txt"))
-        if res1:
-            threads, serial, parallel = res1
+        desc = ("Στο διάγραμμα παρατηρούμε τη μείωση του χρόνου εκτέλεσης καθώς αυξάνονται\n"
+                "τα threads. Η παράλληλη εκτέλεση είναι σημαντικά ταχύτερη από τη σειριακή.")
+        save_plot(fig, output_folder, "q1_performance.png", desc)
+
+    # --- ΑΣΚΗΣΗ 2 ---
+    res2 = parse_q2(os.path.join(input_folder, "q2_test.txt"))
+    if res2:
+        subset = [d for d in res2 if d['size'] == 1000 and d['threads'] == 4]
+        subset.sort(key=lambda x: x['sparsity'])
+        if subset:
             fig, ax = plt.subplots(figsize=(8, 6))
-            ax.plot(threads, parallel, marker='o', color='blue', label='Parallel')
-            ax.axhline(y=sum(serial)/len(serial), color='red', linestyle='--', label='Avg Serial')
-            ax.set_title("Question 1")
-            ax.set_xlabel("Threads")
+            sparsities = [d['sparsity'] for d in subset]
+            ax.plot(sparsities, [d['spmv_s'] for d in subset], marker='s', label='SpMV Serial')
+            ax.plot(sparsities, [d['spmv_p'] for d in subset], marker='o', label='SpMV Parallel')
+            ax.set_title("Question 2 - Performance vs Sparsity")
+            ax.set_xlabel("Sparsity (%)")
             ax.set_ylabel("Time (seconds)")
             ax.legend()
             ax.grid(True)
             
-            desc = ("Στο διάγραμμα παρατηρούμε τη μείωση του χρόνου εκτέλεσης καθώς αυξάνονται\n"
-                    "τα threads. Η παράλληλη εκτέλεση είναι σημαντικά ταχύτερη από τη σειριακή,\n"
-                    "δείχνοντας καλό speedup.")
-            add_plot_to_pdf(pdf, fig, "Q1", desc)
+            desc = ("Εδώ βλέπουμε πώς η αραιότητα (sparsity) επηρεάζει την απόδοση.\n"
+                    "Η μορφή CSR επωφελείται από υψηλότερη αραιότητα.")
+            save_plot(fig, output_folder, "q2_sparsity.png", desc)
 
-        # --- ΑΣΚΗΣΗ 2 ---
-        res2 = parse_q2(os.path.join(folder, "q2_test.txt"))
-        if res2:
-            # Διάγραμμα για Sparsity
-            subset = [d for d in res2 if d['size'] == 1000 and d['threads'] == 4]
-            subset.sort(key=lambda x: x['sparsity'])
-            if subset:
-                fig, ax = plt.subplots(figsize=(8, 6))
-                sparsities = [d['sparsity'] for d in subset]
-                ax.plot(sparsities, [d['spmv_s'] for d in subset], marker='s', label='SpMV Serial')
-                ax.plot(sparsities, [d['spmv_p'] for d in subset], marker='o', label='SpMV Parallel')
-                ax.set_title("Question 2")
-                ax.set_xlabel("Sparsity (%)")
-                ax.set_ylabel("Time (seconds)")
-                ax.legend()
-                ax.grid(True)
-                
-                desc = ("Εδώ βλέπουμε πώς η αραιότητα (sparsity) του πίνακα επηρεάζει την απόδοση.\n"
-                        "Όσο αυξάνεται το % των μηδενικών, ο χρόνος εκτέλεσης μειώνεται, καθώς η μορφή CSR\n"
-                        "επεξεργάζεται μόνο τα μη μηδενικά στοιχεία.")
-                add_plot_to_pdf(pdf, fig, "Q2", desc)
-
-        # --- ΑΣΚΗΣΗ 3 ---
-        res3 = parse_q3(os.path.join(folder, "q3_test.txt"))
-        if res3:
-            sizes = sorted(list(set(d['elements'] for d in res3)))
-            for size in sizes:
-                subset = [d for d in res3 if d['elements'] == size]
-                subset.sort(key=lambda x: x['threads'])
-                
-                fig, ax = plt.subplots(figsize=(8, 6))
-                ax.plot([d['threads'] for d in subset], [d['time'] for d in subset], marker='o', color='green')
-                ax.set_title(f"Question 3")
-                ax.set_xlabel("Threads")
-                ax.set_ylabel("Time (seconds)")
-                ax.grid(True)
-                
-                desc = (f"Ανάλυση ταξινόμησης για {size:,} στοιχεία. Παρατηρούμε ότι μετά από\n"
-                        "έναν συγκεκριμένο αριθμό threads, η βελτίωση του χρόνου σταθεροποιείται λόγω\n"
-                        "του overhead της διαχείρισης των νημάτων.")
-                add_plot_to_pdf(pdf, fig, f"Q3_{size}", desc)
+    # --- ΑΣΚΗΣΗ 3 ---
+    res3 = parse_q3(os.path.join(input_folder, "q3_test.txt"))
+    if res3:
+        sizes = sorted(list(set(d['elements'] for d in res3)))
+        for size in sizes:
+            subset = [d for d in res3 if d['elements'] == size]
+            subset.sort(key=lambda x: x['threads'])
+            
+            fig, ax = plt.subplots(figsize=(8, 6))
+            ax.plot([d['threads'] for d in subset], [d['time'] for d in subset], marker='o', color='green')
+            ax.set_title(f"Question 3 - Sorting {size:,} Elements")
+            ax.set_xlabel("Threads")
+            ax.set_ylabel("Time (seconds)")
+            ax.grid(True)
+            
+            desc = (f"Ανάλυση ταξινόμησης για {size:,} στοιχεία. Παρατηρούμε τη σταθεροποίηση\n"
+                    "της απόδοσης καθώς αυξάνεται το overhead διαχείρισης των νημάτων.")
+            save_plot(fig, output_folder, f"q3_sort_{size}.png", desc)
 
 
 if __name__ == "__main__":
-    generate_report()
+    generate_plots()
